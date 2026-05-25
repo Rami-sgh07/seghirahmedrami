@@ -67,29 +67,13 @@ const activeSectionObserver = new IntersectionObserver(
 
 sections.forEach((section) => activeSectionObserver.observe(section));
 
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  formStatus.textContent = "Sending your message...";
-
+form.addEventListener("submit", (event) => {
   if (window.location.protocol === "file:") {
-    formStatus.textContent = "Thank you. After deployment, this form will send submissions to Rami's email through Netlify Forms.";
+    event.preventDefault();
+    formStatus.textContent = "Thank you. On the live website, this form sends messages to Rami's email.";
     form.reset();
     return;
   }
 
-  try {
-    const formData = new FormData(form);
-    const response = await fetch("/", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams(formData).toString()
-    });
-
-    if (!response.ok) throw new Error("Form submission failed");
-
-    formStatus.textContent = "Thank you. Your message has been sent to Rami.";
-    form.reset();
-  } catch (error) {
-    formStatus.textContent = "Message could not be sent right now. Please use the email or WhatsApp button.";
-  }
+  formStatus.textContent = "Sending your message securely...";
 });
