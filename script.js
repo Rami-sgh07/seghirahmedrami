@@ -1,36 +1,118 @@
-const header = document.getElementById("siteHeader");
-const navToggle = document.getElementById("navToggle");
-const navMenu = document.getElementById("navMenu");
-const year = document.getElementById("year");
-const form = document.querySelector(".contact-form");
-const formStatus = document.getElementById("formStatus");
-const sections = [...document.querySelectorAll("main section[id]")];
-const navLinks = [...document.querySelectorAll(".nav-menu a")];
 
-year.textContent = new Date().getFullYear();
+soundToggle.innerHTML = '<i class="fa-solid fa-volume-xmark"></i><span>Play music</span>';
+document.body.appendChild(soundToggle);
 
-const setHeaderState = () => {
-  header.classList.toggle("scrolled", window.scrollY > 18);
+let audioContext;
+let masterGain;
+let introTimer;
+let isSoundOn = false;
+let hasAudioStarted = false;
+let noteIndex = 0;
+
+const introMelody = [
+  392.0,
+  493.88,
+  587.33,
+  659.25,
+  587.33,
+  493.88,
+  440.0,
+  523.25
+];
+
+const updateSoundButton = () => {
+  soundToggle.classList.toggle("sound-on", isSoundOn);
+  soundToggle.setAttribute("aria-pressed", String(isSoundOn));
+  soundToggle.setAttribute("aria-label", isSoundOn ? "Pause opening music" : "Play opening music");
+  soundToggle.innerHTML = isSoundOn
+    ? '<i class="fa-solid fa-volume-high"></i><span>Music on</span>'
+    : '<i class="fa-solid fa-volume-xmark"></i><span>Play music</span>';
 };
 
-setHeaderState();
-window.addEventListener("scroll", setHeaderState, { passive: true });
+const playIntroNote = () => {
+  if (!audioContext || !masterGain || !isSoundOn) return;
 
-navToggle.addEventListener("click", () => {
-  const isOpen = navMenu.classList.toggle("open");
-  navToggle.setAttribute("aria-expanded", String(isOpen));
-  navToggle.innerHTML = isOpen
-    ? '<i class="fa-solid fa-xmark"></i>'
-    : '<i class="fa-solid fa-bars"></i>';
-});
+  const now = audioContext.currentTime;
+  const frequency = introMelody[noteIndex % introMelody.length];
+  const oscillator = audioContext.createOscillator();
+  const noteGain = audioContext.createGain();
 
-navLinks.forEach((link) => {
-  link.addEventListener("click", () => {
-    navMenu.classList.remove("open");
-    navToggle.setAttribute("aria-expanded", "false");
-    navToggle.innerHTML = '<i class="fa-solid fa-bars"></i>';
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(frequency, now);
+  noteGain.gain.setValueAtTime(0.0001, now);
+  noteGain.gain.exponentialRampToValueAtTime(0.55, now + 0.04);
+  noteGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.68);
+
+  oscillator.connect(noteGain);
+  noteGain.connect(masterGain);
+  oscillator.start(now);
+  oscillator.stop(now + 0.72);
+
+  noteIndex += 1;
+};
+
+const stopIntroMusic = () => {
+  isSoundOn = false;
+  clearInterval(introTimer);
+  introTimer = undefined;
+
+  if (masterGain && audioContext) {
+    const now = audioContext.currentTime;
+    masterGain.gain.cancelScheduledValues(now);
+    masterGain.gain.setTargetAtTime(0.0001, now, 0.08);
+  }
+
+  updateSoundButton();
+};
+
+const startIntroMusic = async () => {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioContext.createGain();
+    masterGain.gain.value = 0.0001;
+    masterGain.connect(audioContext.destination);
+  }
+
+  if (audioContext.state === "suspended") {
+    await audioContext.resume();
+  }
+
+  isSoundOn = true;
+  hasAudioStarted = true;
+  const now = audioContext.currentTime;
+  masterGain.gain.cancelScheduledValues(now);
+  masterGain.gain.setTargetAtTime(0.045, now, 0.12);
+  updateSoundButton();
+  playIntroNote();
+  clearInterval(introTimer);
+  introTimer = setInterval(playIntroNote, 760);
+};
+
+const toggleIntroMusic = () => {
+  if (isSoundOn) {
+    stopIntroMusic();
+    return;
+  }
+
+  startIntroMusic().catch(() => {
+    stopIntroMusic();
   });
+};
+
+const startMusicAfterFirstInteraction = () => {
+  if (hasAudioStarted || isSoundOn) return;
+  startIntroMusic().catch(() => {
+    stopIntroMusic();
+  });
+};
+
+soundToggle.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleIntroMusic();
 });
+
+document.addEventListener("pointerdown", startMusicAfterFirstInteraction, { once: true });
+document.addEventListener("keydown", startMusicAfterFirstInteraction, { once: true });
 
 const revealObserver = new IntersectionObserver(
   (entries) => {
@@ -76,4 +158,6 @@ form.addEventListener("submit", (event) => {
   }
 
   formStatus.textContent = "Sending your message securely...";
+});
+r message securely...";
 });
