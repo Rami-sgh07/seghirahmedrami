@@ -97,8 +97,8 @@ soundToggle.className = "sound-toggle";
 soundToggle.id = "soundToggle";
 soundToggle.type = "button";
 soundToggle.setAttribute("aria-pressed", "false");
-soundToggle.setAttribute("aria-label", "Play opening music");
-soundToggle.innerHTML = '<i class="fa-solid fa-volume-xmark"></i><span>Play music</span>';
+soundToggle.setAttribute("aria-label", "Play professional intro");
+soundToggle.innerHTML = '<i class="fa-solid fa-volume-xmark"></i><span>Play intro</span>';
 document.body.appendChild(soundToggle);
 
 let audioContext;
@@ -108,46 +108,74 @@ let isSoundOn = false;
 let hasAudioStarted = false;
 let noteIndex = 0;
 
-const introMelody = [
-  392.0,
-  493.88,
-  587.33,
-  659.25,
-  587.33,
-  493.88,
-  440.0,
-  523.25
+const introChords = [
+  [261.63, 329.63, 392.0],
+  [293.66, 369.99, 440.0],
+  [246.94, 329.63, 392.0],
+  [220.0, 277.18, 329.63]
 ];
+
+const motivationalMessage =
+  "Welcome to the professional portfolio of Rami Seghir. Build with focus, work with confidence, and create opportunities every day.";
 
 const updateSoundButton = () => {
   soundToggle.classList.toggle("sound-on", isSoundOn);
   soundToggle.setAttribute("aria-pressed", String(isSoundOn));
-  soundToggle.setAttribute("aria-label", isSoundOn ? "Pause opening music" : "Play opening music");
+  soundToggle.setAttribute("aria-label", isSoundOn ? "Pause professional intro" : "Play professional intro");
   soundToggle.innerHTML = isSoundOn
-    ? '<i class="fa-solid fa-volume-high"></i><span>Music on</span>'
-    : '<i class="fa-solid fa-volume-xmark"></i><span>Play music</span>';
+    ? '<i class="fa-solid fa-volume-high"></i><span>Intro on</span>'
+    : '<i class="fa-solid fa-volume-xmark"></i><span>Play intro</span>';
 };
 
-const playIntroNote = () => {
+const playIntroChord = () => {
   if (!audioContext || !masterGain || !isSoundOn) return;
 
   const now = audioContext.currentTime;
-  const frequency = introMelody[noteIndex % introMelody.length];
-  const oscillator = audioContext.createOscillator();
-  const noteGain = audioContext.createGain();
+  const chord = introChords[noteIndex % introChords.length];
 
-  oscillator.type = "sine";
-  oscillator.frequency.setValueAtTime(frequency, now);
-  noteGain.gain.setValueAtTime(0.0001, now);
-  noteGain.gain.exponentialRampToValueAtTime(0.55, now + 0.04);
-  noteGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.68);
+  chord.forEach((frequency, index) => {
+    const oscillator = audioContext.createOscillator();
+    const noteGain = audioContext.createGain();
+    const filter = audioContext.createBiquadFilter();
 
-  oscillator.connect(noteGain);
-  noteGain.connect(masterGain);
-  oscillator.start(now);
-  oscillator.stop(now + 0.72);
+    oscillator.type = index === 0 ? "triangle" : "sine";
+    oscillator.frequency.setValueAtTime(frequency, now);
+    oscillator.detune.setValueAtTime(index * 2, now);
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(1200, now);
+    noteGain.gain.setValueAtTime(0.0001, now);
+    noteGain.gain.exponentialRampToValueAtTime(0.14, now + 0.32);
+    noteGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.5);
+
+    oscillator.connect(filter);
+    filter.connect(noteGain);
+    noteGain.connect(masterGain);
+    oscillator.start(now);
+    oscillator.stop(now + 2.6);
+  });
 
   noteIndex += 1;
+};
+
+const speakMotivationalIntro = () => {
+  if (!("speechSynthesis" in window)) return;
+
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(motivationalMessage);
+  const voices = window.speechSynthesis.getVoices();
+  const professionalVoice =
+    voices.find((voice) => voice.lang.startsWith("en") && /male|david|mark|daniel|google uk english male/i.test(voice.name)) ||
+    voices.find((voice) => voice.lang.startsWith("en")) ||
+    voices[0];
+
+  if (professionalVoice) {
+    utterance.voice = professionalVoice;
+  }
+
+  utterance.rate = 0.92;
+  utterance.pitch = 0.88;
+  utterance.volume = 0.9;
+  window.speechSynthesis.speak(utterance);
 };
 
 const stopIntroMusic = () => {
@@ -159,6 +187,10 @@ const stopIntroMusic = () => {
     const now = audioContext.currentTime;
     masterGain.gain.cancelScheduledValues(now);
     masterGain.gain.setTargetAtTime(0.0001, now, 0.08);
+  }
+
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
   }
 
   updateSoundButton();
@@ -180,11 +212,12 @@ const startIntroMusic = async () => {
   hasAudioStarted = true;
   const now = audioContext.currentTime;
   masterGain.gain.cancelScheduledValues(now);
-  masterGain.gain.setTargetAtTime(0.045, now, 0.12);
+  masterGain.gain.setTargetAtTime(0.065, now, 0.2);
   updateSoundButton();
-  playIntroNote();
+  playIntroChord();
+  speakMotivationalIntro();
   clearInterval(introTimer);
-  introTimer = setInterval(playIntroNote, 760);
+  introTimer = setInterval(playIntroChord, 2600);
 };
 
 const toggleIntroMusic = () => {
