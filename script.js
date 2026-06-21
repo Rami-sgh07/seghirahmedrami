@@ -97,128 +97,47 @@ soundToggle.className = "sound-toggle";
 soundToggle.id = "soundToggle";
 soundToggle.type = "button";
 soundToggle.setAttribute("aria-pressed", "false");
-soundToggle.setAttribute("aria-label", "Play professional intro");
-soundToggle.innerHTML = '<i class="fa-solid fa-volume-xmark"></i><span>Play intro</span>';
+soundToggle.setAttribute("aria-label", "Play AI welcome");
+soundToggle.innerHTML = '<i class="fa-solid fa-play"></i><span>AI welcome</span>';
 document.body.appendChild(soundToggle);
 
-let audioContext;
-let masterGain;
-let introTimer;
 let isSoundOn = false;
 let hasAudioStarted = false;
-let noteIndex = 0;
-
-const introChords = [
-  [261.63, 329.63, 392.0],
-  [293.66, 369.99, 440.0],
-  [246.94, 329.63, 392.0],
-  [220.0, 277.18, 329.63]
-];
-
-const motivationalMessage =
-  "Welcome to the professional portfolio of Rami Seghir. Build with focus, work with confidence, and create opportunities every day.";
+const aiWelcome = new Audio(
+  "https://storage.googleapis.com/adm--audio-playback--7d--public/mcp-preview/f709e545-3cf1-4af6-9aa0-5c62224efe03.mp3"
+);
+aiWelcome.preload = "metadata";
 
 const updateSoundButton = () => {
   soundToggle.classList.toggle("sound-on", isSoundOn);
   soundToggle.setAttribute("aria-pressed", String(isSoundOn));
-  soundToggle.setAttribute("aria-label", isSoundOn ? "Pause professional intro" : "Play professional intro");
+  soundToggle.setAttribute("aria-label", isSoundOn ? "Pause AI welcome" : "Play AI welcome");
   soundToggle.innerHTML = isSoundOn
-    ? '<i class="fa-solid fa-volume-high"></i><span>Intro on</span>'
-    : '<i class="fa-solid fa-volume-xmark"></i><span>Play intro</span>';
-};
-
-const playIntroChord = () => {
-  if (!audioContext || !masterGain || !isSoundOn) return;
-
-  const now = audioContext.currentTime;
-  const chord = introChords[noteIndex % introChords.length];
-
-  chord.forEach((frequency, index) => {
-    const oscillator = audioContext.createOscillator();
-    const noteGain = audioContext.createGain();
-    const filter = audioContext.createBiquadFilter();
-
-    oscillator.type = index === 0 ? "triangle" : "sine";
-    oscillator.frequency.setValueAtTime(frequency, now);
-    oscillator.detune.setValueAtTime(index * 2, now);
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(1200, now);
-    noteGain.gain.setValueAtTime(0.0001, now);
-    noteGain.gain.exponentialRampToValueAtTime(0.14, now + 0.32);
-    noteGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.5);
-
-    oscillator.connect(filter);
-    filter.connect(noteGain);
-    noteGain.connect(masterGain);
-    oscillator.start(now);
-    oscillator.stop(now + 2.6);
-  });
-
-  noteIndex += 1;
-};
-
-const speakMotivationalIntro = () => {
-  if (!("speechSynthesis" in window)) return;
-
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(motivationalMessage);
-  const voices = window.speechSynthesis.getVoices();
-  const professionalVoice =
-    voices.find((voice) => voice.lang.startsWith("en") && /male|david|mark|daniel|google uk english male/i.test(voice.name)) ||
-    voices.find((voice) => voice.lang.startsWith("en")) ||
-    voices[0];
-
-  if (professionalVoice) {
-    utterance.voice = professionalVoice;
-  }
-
-  utterance.rate = 0.92;
-  utterance.pitch = 0.88;
-  utterance.volume = 0.9;
-  window.speechSynthesis.speak(utterance);
+    ? '<i class="fa-solid fa-pause"></i><span>Pause welcome</span>'
+    : '<i class="fa-solid fa-play"></i><span>AI welcome</span>';
 };
 
 const stopIntroMusic = () => {
   isSoundOn = false;
-  clearInterval(introTimer);
-  introTimer = undefined;
-
-  if (masterGain && audioContext) {
-    const now = audioContext.currentTime;
-    masterGain.gain.cancelScheduledValues(now);
-    masterGain.gain.setTargetAtTime(0.0001, now, 0.08);
-  }
-
-  if ("speechSynthesis" in window) {
-    window.speechSynthesis.cancel();
-  }
-
+  aiWelcome.pause();
   updateSoundButton();
 };
 
 const startIntroMusic = async () => {
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    masterGain = audioContext.createGain();
-    masterGain.gain.value = 0.0001;
-    masterGain.connect(audioContext.destination);
-  }
-
-  if (audioContext.state === "suspended") {
-    await audioContext.resume();
-  }
-
   isSoundOn = true;
   hasAudioStarted = true;
-  const now = audioContext.currentTime;
-  masterGain.gain.cancelScheduledValues(now);
-  masterGain.gain.setTargetAtTime(0.065, now, 0.2);
   updateSoundButton();
-  playIntroChord();
-  speakMotivationalIntro();
-  clearInterval(introTimer);
-  introTimer = setInterval(playIntroChord, 2600);
+  await aiWelcome.play();
 };
+
+aiWelcome.addEventListener("ended", () => {
+  aiWelcome.currentTime = 0;
+  stopIntroMusic();
+});
+
+aiWelcome.addEventListener("error", () => {
+  stopIntroMusic();
+});
 
 const toggleIntroMusic = () => {
   if (isSoundOn) {
